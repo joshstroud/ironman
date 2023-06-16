@@ -8,8 +8,11 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+import base64
+from email.message import EmailMessage
+
 # If modifying these scopes, delete the file token.json.
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+SCOPES = ['https://www.googleapis.com/auth/gmail.compose']
 
 
 def main():
@@ -37,15 +40,26 @@ def main():
     try:
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
-        results = service.users().labels().list(userId='me').execute()
-        labels = results.get('labels', [])
 
-        if not labels:
-            print('No labels found.')
-            return
-        print('Labels:')
-        for label in labels:
-            print(label['name'])
+        message = EmailMessage()
+
+        message.set_content('This is automated draft mail')
+
+        message['To'] = 'josh.e.stroud@gmail.com'
+        message['From'] = 'ironman@joshstroud.com'
+        message['Subject'] = 'Automated draft'
+
+        # encoded message
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()) \
+            .decode()
+
+        create_message = {
+            'raw': encoded_message
+        }
+        # pylint: disable=E1101
+        send_message = (service.users().messages().send
+                        (userId="me", body=create_message).execute())
+        print(F'Message Id: {send_message["id"]}')
 
     except HttpError as error:
         # TODO(developer) - Handle errors from gmail API.
